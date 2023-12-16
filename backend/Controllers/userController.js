@@ -4,10 +4,17 @@ const bcrypt = require('bcryptjs')
 const User = require('../Model/users') 
 
 //  @desc        get user   
-//  @route       GET api/users/user
+//  @route       GET api/users/me
 //  @access      Private
 const getUser = async(req, res, next) => {
-    res.status(200).json({message: 'display a User'})
+    const {_id, name, email, password} = await User.findById(req.user.id)
+
+    res.status(200).json({
+        id: _id,
+        name,
+        email,
+        password
+    })
 }
 
 //  @desc        Register user   
@@ -42,7 +49,8 @@ const RegisterUser = async(req, res, next) => {
         res.status(201).json({
             _id: user.id,
             name: user.name,
-            email: user.email
+            email: user.email,
+            token: generateToken(user._id)
         })
     }else {
         res.status(400)
@@ -53,12 +61,33 @@ const RegisterUser = async(req, res, next) => {
 //  @desc        Authenticate a user   
 //  @route       GET api/users/login
 //  @access      Public
-const loginUser = (req, res, next) => {
-    res.status(200).json({message:'login user'})
+const loginUser = async(req, res, next) => {
+    const { email, password } = req.body
+
+    const user = await User.findOne({ email })
+
+    if(user && (await bcrypt.compare(password, user.password))){
+        res.json({
+            _id: user.id,
+            name: user.name,
+            email: user.email,
+            token: generateToken(user._id)
+        })
+    } else {
+        res.status(400)
+        throw new Error('Invalid credentials')
+    }
+}
+
+// Generate JWT
+const generateToken = (id) => {
+    return jwt.sign({id}, process.env.JWT_SECRET, {
+        expiresIn: '1d'
+    })
 }
 
 module.exports = {
     getUser,
     RegisterUser,
     loginUser
-} 
+}
